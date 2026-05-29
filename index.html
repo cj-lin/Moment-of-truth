@@ -1387,9 +1387,45 @@ function scoreLabel(avg) {
   return               { text: '需關注', cls: 'badge-low',  bar: 'bar-low'  };
 }
 
-/* ════════════════════════════════════════
-   BUILD RESULTS
-═══════════════════════════════════════════ */
+function getStrengthsData() {
+  // Returns array of { label, score, desc, isCategory }
+  const strongCatsFull = [...CATEGORIES]
+    .map(c => ({ ...c, avg: getCatAvg(c.id) }))
+    .filter(c => c.avg >= 4)
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 3);
+
+  if (strongCatsFull.length > 0) {
+    return { type: 'category', title: '✦ 分會優勢項目', items: strongCatsFull.map(cat => {
+      const catStrs = CRITERION_STRENGTHS[cat.id] || [];
+      const bestIdx = scores[cat.id].reduce((bi, sc, i) =>
+        (sc !== null && (bi === -1 || sc > scores[cat.id][bi])) ? i : bi, -1);
+      const desc = bestIdx >= 0 && catStrs[bestIdx] ? catStrs[bestIdx] : `整體表現均衡優秀（均分 ${cat.avg.toFixed(1)}）`;
+      return { label: `${cat.emoji} ${cat.title}`, score: cat.avg.toFixed(1), desc };
+    })};
+  }
+
+  // Fallback: top 3 individual criteria ≥ 4
+  let allCriteria = [];
+  CATEGORIES.forEach(cat => {
+    const catStrs = CRITERION_STRENGTHS[cat.id] || [];
+    scores[cat.id].forEach((sc, i) => {
+      if (sc !== null && sc >= 4) {
+        allCriteria.push({ label: `${cat.emoji} ${cat.criteria[i]}`, score: sc, desc: catStrs[i] || '', sub: cat.title });
+      }
+    });
+  });
+  allCriteria.sort((a, b) => b.score - a.score);
+  const top3 = allCriteria.slice(0, 3);
+  if (top3.length > 0) {
+    return { type: 'criterion', title: '✦ 分會相對優勢（單項）', items: top3.map(x => ({
+      label: x.label, score: x.score, desc: x.desc, sub: x.sub
+    }))};
+  }
+  return null;
+}
+
+
 function buildResults() {
   const total = getTotalAvg();
   const pct = Math.round((total / 5) * 100);
@@ -1515,70 +1551,22 @@ function buildResults() {
   // Accordion — always shown below
   // (strategyHTML already built above)
 
-  // Strengths — top 3 by category avg ≥ 4, else fall back to top 3 individual criteria ≥ 4
+  // Strengths — use shared function
   let strengthHTML = '';
-
-  // Try: categories with avg ≥ 4, pick top 3
-  const strongCatsFull = [...CATEGORIES]
-    .map(c => ({ ...c, avg: getCatAvg(c.id) }))
-    .filter(c => c.avg >= 4)
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, 3);
-
-  if (strongCatsFull.length > 0) {
-    const items = strongCatsFull.map(cat => {
-      // Find the single highest-scored criterion in that category to anchor the description
-      const catStrs = CRITERION_STRENGTHS[cat.id] || [];
-      const bestIdx = scores[cat.id].reduce((bi, sc, i) =>
-        (sc !== null && (bi === -1 || sc > scores[cat.id][bi])) ? i : bi, -1);
-      const desc = bestIdx >= 0 && catStrs[bestIdx]
-        ? catStrs[bestIdx]
-        : `整體表現均衡優秀（均分 ${cat.avg.toFixed(1)}）`;
-      return `
-        <div class="strength-item">
-          <span class="strength-check">✓</span>
-          <div>
-            <strong>${cat.emoji} ${cat.title}</strong>
-            <span style="font-size:11px;font-weight:700;color:#1E8449;background:#C8E6C9;
-              padding:2px 7px;border-radius:10px;margin-left:6px;">${cat.avg.toFixed(1)} 分</span>
-            <div style="font-size:13px;color:#1E5F3F;margin-top:4px;line-height:1.6;">${desc}</div>
-          </div>
-        </div>`;
-    }).join('');
-    strengthHTML = `<div class="strength-card"><h4>✦ 分會優勢項目</h4>${items}</div>`;
-
-  } else {
-    // Fallback: pick top 3 individual criteria with score ≥ 4 across all categories
-    let allCriteria = [];
-    CATEGORIES.forEach(cat => {
-      const catStrs = CRITERION_STRENGTHS[cat.id] || [];
-      scores[cat.id].forEach((sc, i) => {
-        if (sc !== null && sc >= 4) {
-          allCriteria.push({
-            catEmoji: cat.emoji, catTitle: cat.title,
-            crit: cat.criteria[i], sc,
-            desc: catStrs[i] || ''
-          });
-        }
-      });
-    });
-    allCriteria.sort((a, b) => b.sc - a.sc);
-    const top3 = allCriteria.slice(0, 3);
-
-    if (top3.length > 0) {
-      const items = top3.map(x => `
-        <div class="strength-item">
-          <span class="strength-check">✓</span>
-          <div>
-            <strong>${x.catEmoji} ${x.crit}</strong>
-            <span style="font-size:11px;font-weight:700;color:#1E8449;background:#C8E6C9;
-              padding:2px 7px;border-radius:10px;margin-left:6px;">${x.sc} 分</span>
-            <div style="font-size:12px;color:#888;margin-top:1px;">${x.catTitle}</div>
-            <div style="font-size:13px;color:#1E5F3F;margin-top:4px;line-height:1.6;">${x.desc}</div>
-          </div>
-        </div>`).join('');
-      strengthHTML = `<div class="strength-card"><h4>✦ 分會相對優勢（單項）</h4>${items}</div>`;
-    }
+  const strengthsData = getStrengthsData();
+  if (strengthsData) {
+    const items = strengthsData.items.map(x => `
+      <div class="strength-item">
+        <span class="strength-check">✓</span>
+        <div>
+          <strong>${x.label}</strong>
+          <span style="font-size:11px;font-weight:700;color:#1E8449;background:#C8E6C9;
+            padding:2px 7px;border-radius:10px;margin-left:6px;">${x.score} 分</span>
+          ${x.sub ? `<div style="font-size:12px;color:#888;margin-top:1px;">${x.sub}</div>` : ''}
+          <div style="font-size:13px;color:#1E5F3F;margin-top:4px;line-height:1.6;">${x.desc}</div>
+        </div>
+      </div>`).join('');
+    strengthHTML = `<div class="strength-card"><h4>${strengthsData.title}</h4>${items}</div>`;
   }
 
   const totalLabel = scoreLabel(total);
@@ -1746,7 +1734,7 @@ async function downloadResult() {
   const now = new Date().toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
   const total = getTotalAvg();
 
-  // Cat score rows
+  // ── Score rows ────────────────────────────────────
   const catRows = CATEGORIES.map(cat => {
     const avg = getCatAvg(cat.id);
     const pctBar = avg ? Math.round((avg/5)*100) : 0;
@@ -1763,56 +1751,70 @@ async function downloadResult() {
       </div>`;
   }).join('');
 
-  // Collect selected bubbles
-  const allChallengesList = BEST_PRACTICES.flatMap((group, gi) =>
-    group.entries.map((entry, ei) => ({ catLabel: group.catLabel, challenge: entry.challenge }))
+  // ── Q1 label + selected bubbles ───────────────────
+  const allChallengesList = BEST_PRACTICES.flatMap(group =>
+    group.entries.map(entry => ({ catLabel: group.catLabel, challenge: entry.challenge }))
   );
-  const selectedChallengesHTML = selectedBubbles.size > 0 ? `
-    <div style="margin-top:12px;">
-      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#C45E1A;margin-bottom:6px;">Q1 — 挑戰項目</div>
-      ${[...selectedBubbles].map(idx => {
+  const bubblesContent = selectedBubbles.size > 0
+    ? [...selectedBubbles].map(idx => {
         const c = allChallengesList[idx];
-        return `<div style="display:inline-block;background:#FDE8E8;border:1px solid #C0392B;border-radius:20px;
-          font-size:11px;color:#8B1A2F;font-weight:600;padding:3px 9px;margin:2px 3px 2px 0;">${c ? c.catLabel + '：' + c.challenge.slice(0,30) + '…' : ''}</div>`;
-      }).join('')}
-    </div>` : '';
+        return `<div style="display:inline-block;background:#FDE8E8;border:1px solid #C0392B;
+          border-radius:20px;font-size:11px;color:#8B1A2F;font-weight:600;
+          padding:4px 10px;margin:3px 4px 3px 0;line-height:1.4;">
+          ${c ? c.catLabel + '：' + c.challenge : ''}
+        </div>`;
+      }).join('')
+    : `<div style="font-size:12px;color:#aaa;">（未選取）</div>`;
 
-  // Collect action rows
+  // ── Q2 label + action rows ────────────────────────
   const actionRowEls = document.querySelectorAll('.action-row');
   const actionRowsData = [...actionRowEls].map(row => {
     const areas = row.querySelectorAll('textarea');
     return { who: areas[0]?.value || '', what: areas[1]?.value || '', when: areas[2]?.value || '' };
-  }).filter(r => r.who || r.what || r.when);
+  });
 
-  const actionRowsHTML = actionRowsData.length > 0 ? `
-    <div style="margin-top:12px;">
-      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#1A1208;margin-bottom:8px;">Q2 — 行動計畫</div>
-      <div style="display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:4px;margin-bottom:4px;">
-        <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;">Who</div>
-        <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;">Will do what</div>
-        <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;">By when</div>
+  const actionTable = actionRowsData.length > 0 ? `
+    <div style="display:grid;grid-template-columns:1fr 1.5fr 0.8fr;gap:3px;margin-bottom:5px;padding:0 2px;">
+      <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;padding-left:2px;">Who</div>
+      <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;">Will do what</div>
+      <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;">By when</div>
+    </div>
+    ${actionRowsData.map(r => `
+      <div style="display:grid;grid-template-columns:1fr 1.5fr 0.8fr;gap:3px;margin-bottom:5px;
+        background:#FFFBF5;border:1px solid #E0D4BB;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:12px;color:#1A1208;line-height:1.5;word-break:break-word;">${r.who || '—'}</div>
+        <div style="font-size:12px;color:#1A1208;line-height:1.5;word-break:break-word;">${r.what || '—'}</div>
+        <div style="font-size:12px;color:#1A1208;line-height:1.5;word-break:break-word;">${r.when || '—'}</div>
+      </div>`).join('')}
+  ` : `<div style="font-size:12px;color:#aaa;">（未填寫）</div>`;
+
+  // ── Strengths block for capture card ─────────────
+  const strengthsData = getStrengthsData();
+  const strengthsCardHTML = strengthsData ? `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="background:#1E8449;color:#fff;font-size:10px;font-weight:700;
+          padding:3px 9px;border-radius:8px;letter-spacing:0.5px;">💪 優勢</span>
+        <span style="font-size:12px;font-weight:600;color:#1A1208;">${strengthsData.title.replace('✦ ','')}</span>
       </div>
-      ${actionRowsData.map(r => `
-        <div style="display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:4px;margin-bottom:6px;
-          background:#FFFBF5;border:1px solid #E0D4BB;border-radius:8px;padding:8px 10px;">
-          <div style="font-size:12px;color:#1A1208;line-height:1.5;">${r.who || '—'}</div>
-          <div style="font-size:12px;color:#1A1208;line-height:1.5;">${r.what || '—'}</div>
-          <div style="font-size:12px;color:#1A1208;line-height:1.5;">${r.when || '—'}</div>
+      ${strengthsData.items.map(x => `
+        <div style="display:flex;gap:10px;align-items:flex-start;
+          background:#F2FBF5;border:1px solid #B8E0C4;border-radius:8px;
+          padding:9px 12px;margin-bottom:6px;">
+          <span style="color:#1E8449;font-size:14px;flex-shrink:0;margin-top:1px;">✓</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1A1208;">
+              ${x.label}
+              <span style="font-size:11px;font-weight:700;color:#1E8449;background:#C8E6C9;
+                padding:2px 7px;border-radius:10px;margin-left:5px;">${x.score} 分</span>
+            </div>
+            ${x.sub ? `<div style="font-size:11px;color:#888;margin-top:1px;">${x.sub}</div>` : ''}
+            <div style="font-size:12px;color:#1E5F3F;margin-top:4px;line-height:1.6;">${x.desc}</div>
+          </div>
         </div>`).join('')}
     </div>` : '';
 
-  // Discussion questions block
-  const discussionBlock = `
-    <div style="background:#1A1208;border-radius:10px;padding:12px 14px;margin-top:12px;">
-      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#E8C47A;margin-bottom:8px;">原文討論問題</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.88);line-height:1.6;margin-bottom:4px;">
-        <span style="color:#C8973A;font-weight:700;">1．</span>遇到挑戰的原因為何？
-      </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.88);line-height:1.6;">
-        <span style="color:#C8973A;font-weight:700;">2．</span>該如何因應？ 誰應擔負起行動的責任？
-      </div>
-    </div>`;
-
+  // ── Capture card HTML — Q labels sit directly above answers ──
   document.getElementById('capture-card').innerHTML = `
     <div class="cc-header">
       <div class="badge-sm">Moments of Truth · 關鍵時刻評量</div>
@@ -1825,9 +1827,28 @@ async function downloadResult() {
         <span class="cc-total-val">${total.toFixed(1)} / 5</span>
       </div>
       ${catRows}
-      ${selectedChallengesHTML}
-      ${actionRowsHTML}
-      ${discussionBlock}
+      ${strengthsCardHTML}
+
+      <!-- Q1 -->
+      <div style="margin-top:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="background:#8B1A2F;color:#fff;font-size:10px;font-weight:700;
+            padding:3px 9px;border-radius:8px;letter-spacing:0.5px;">Q1</span>
+          <span style="font-size:12px;font-weight:600;color:#1A1208;">遇到挑戰的原因為何？</span>
+        </div>
+        ${bubblesContent}
+      </div>
+
+      <!-- Q2 -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="background:#8B1A2F;color:#fff;font-size:10px;font-weight:700;
+            padding:3px 9px;border-radius:8px;letter-spacing:0.5px;">Q2</span>
+          <span style="font-size:12px;font-weight:600;color:#1A1208;">該如何因應？誰應擔負起行動的責任？</span>
+        </div>
+        ${actionTable}
+      </div>
+
       <div class="cc-footer">Toastmasters International · The Successful Club Series</div>
     </div>
   `;
@@ -1846,10 +1867,31 @@ async function downloadResult() {
       width: 390,
       logging: false,
     });
-    const link = document.createElement('a');
-    link.download = `${clubName}_關鍵時刻評量_${now.replace(/[/:]/g,'').replace(' ','_')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+
+    const filename = `${clubName}_關鍵時刻評量_${now.replace(/[/:\s]/g,'')}.png`;
+
+    // ── Mobile: use Web Share API → saves directly to Photos ──
+    if (navigator.share && navigator.canShare) {
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: `${clubName} 關鍵時刻評量` });
+            showToast('✓ 已分享／儲存！');
+          } catch (e) {
+            if (e.name !== 'AbortError') fallbackDownload(canvas, filename);
+          }
+        } else {
+          fallbackDownload(canvas, filename);
+        }
+        btn.innerHTML = `<span>⬇</span> 下載評量結果圖片`;
+        btn.disabled = false;
+      }, 'image/png');
+      return; // wait for blob callback
+    }
+
+    // ── Desktop fallback ──
+    fallbackDownload(canvas, filename);
     showToast('✓ 圖片已下載！');
   } catch(e) {
     showToast('下載失敗，請截圖儲存');
@@ -1857,6 +1899,13 @@ async function downloadResult() {
 
   btn.innerHTML = `<span>⬇</span> 下載評量結果圖片`;
   btn.disabled = false;
+}
+
+function fallbackDownload(canvas, filename) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
 /* ════════════════════════════════════════
