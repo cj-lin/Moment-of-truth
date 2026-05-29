@@ -1758,8 +1758,8 @@ async function downloadResult() {
   const bubblesContent = selectedBubbles.size > 0
     ? [...selectedBubbles].map(idx => {
         const c = allChallengesList[idx];
-        return `<div style="display:inline-block;background:#FDE8E8;border:1px solid #C0392B;
-          border-radius:20px;font-size:11px;color:#8B1A2F;font-weight:600;
+        return `<div style="display:inline-block;background:#EDE0FF;border:1px solid #9B6DD4;
+          border-radius:20px;font-size:11px;color:#5B2D8E;font-weight:600;
           padding:4px 10px;margin:3px 4px 3px 0;line-height:1.4;">
           ${c ? c.catLabel + '：' + c.challenge : ''}
         </div>`;
@@ -1884,19 +1884,28 @@ async function downloadResult() {
     </div>
     <div class="cc-body" style="padding:14px 14px 0;">
 
-      ${catGrid}
+      <!-- ① 自我評分 -->
+      <div style="background:#FFFBEE;border:1.5px solid #E8C850;border-radius:12px;
+        padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+          <span style="background:#B8860B;color:#fff;font-size:9px;font-weight:700;
+            padding:3px 9px;border-radius:7px;letter-spacing:0.5px;">📊 自我評分</span>
+        </div>
+        ${catGrid}
+      </div>
 
-      <!-- 優化行動：Q1 + Q2 同一底色區塊 -->
+      <!-- ② 優化行動 -->
       <div style="background:#F6F0FF;border:1.5px solid #C9B0F0;border-radius:12px;
-        padding:12px 14px;margin-bottom:12px;">
-
-        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-          color:#5B2D8E;margin-bottom:12px;">🎯 優化行動</div>
+        padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">
+          <span style="background:#5B2D8E;color:#fff;font-size:9px;font-weight:700;
+            padding:3px 9px;border-radius:7px;letter-spacing:0.5px;">🎯 優化行動</span>
+        </div>
 
         <!-- Q1 -->
         <div style="margin-bottom:12px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
-            <span style="background:#8B1A2F;color:#fff;font-size:10px;font-weight:700;
+            <span style="background:#5B2D8E;color:#fff;font-size:10px;font-weight:700;
               padding:3px 9px;border-radius:8px;">Q1</span>
             <span style="font-size:12px;font-weight:600;color:#1A1208;">遇到挑戰的原因為何？</span>
           </div>
@@ -1914,12 +1923,34 @@ async function downloadResult() {
           </div>
           ${actionTable}
         </div>
-
       </div>
 
-      ${strengthsCardHTML}
+      <!-- ③ 分會優勢 -->
+      ${strengthsData ? `
+      <div style="background:#F2FBF5;border:1.5px solid #B8E0C4;border-radius:12px;
+        padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+          <span style="background:#1E8449;color:#fff;font-size:9px;font-weight:700;
+            padding:3px 9px;border-radius:7px;letter-spacing:0.5px;">💪 分會優勢</span>
+        </div>
+        ${strengthsData.items.map(x => `
+          <div style="display:flex;gap:9px;align-items:flex-start;
+            background:#fff;border:1px solid #B8E0C4;border-radius:8px;
+            padding:8px 11px;margin-bottom:6px;">
+            <span style="color:#1E8449;font-size:13px;flex-shrink:0;margin-top:1px;">✓</span>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#1A1208;">
+                ${x.label}
+                <span style="font-size:10px;font-weight:700;color:#1E8449;background:#C8E6C9;
+                  padding:2px 6px;border-radius:8px;margin-left:4px;">${x.score} 分</span>
+              </div>
+              ${x.sub ? `<div style="font-size:10px;color:#888;margin-top:1px;">${x.sub}</div>` : ''}
+              <div style="font-size:11px;color:#1E5F3F;margin-top:3px;line-height:1.55;">${x.desc}</div>
+            </div>
+          </div>`).join('')}
+      </div>` : ''}
 
-      <!-- Motivational closing -->
+      <!-- 打氣金句 -->
       <div style="background:linear-gradient(135deg,#1A1208,#3A2510);
         border-radius:10px;padding:12px 16px;margin-bottom:4px;text-align:center;">
         <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.92);
