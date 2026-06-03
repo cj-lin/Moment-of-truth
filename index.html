@@ -3037,6 +3037,19 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzWyUbxStyq2jkXIP_mmezUc7TYYykRJsmZZhI8MO6onbrTSfLDX58Tp49_VCilZtgGsA/exec';
+
+document.addEventListener('mot:submit', (e) => {
+  fetch(BACKEND_URL, {
+    method: 'POST',
+    // 用 text/plain 避開 CORS 預檢；後端照樣 JSON.parse
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(e.detail),
+  })
+  .then(r => r.json())
+  .then(res => console.log('[MOT] 後端回應:', res))
+  .catch(err => console.warn('[MOT] 送出失敗:', err));
+});
 </script>
 </body>
 </html>
